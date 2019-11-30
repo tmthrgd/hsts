@@ -11,10 +11,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
 	filter "github.com/tmthrgd/go-filter"
+	"go.tmthrgd.dev/hsts"
 )
 
 const jsonURL = "https://cs.chromium.org/codesearch/f/chromium/src/net/http/transport_security_state_static.json"
@@ -54,16 +56,6 @@ func main1() error {
 		Entries []struct {
 			Name string
 
-			Policy string
-			//  - test: test domains.
-			//  - google: Google-owned sites.
-			//  - custom: entries without includeSubdomains or with HPKP/Expect-CT.
-			//  - bulk-legacy: bulk entries preloaded before Chrome 50.
-			//  - bulk-18-weeks: bulk entries with max-age >= 18 weeks (Chrome 50-63).
-			//  - bulk-1-year: bulk entries with max-age >= 1 year (after Chrome 63).
-			//  - public-suffix-requested: public suffixes preloaded at the owners
-			//    request (manual).
-
 			IncludeSubdomains bool `json:"include_subdomains"`
 
 			Mode string
@@ -73,6 +65,41 @@ func main1() error {
 	if err := json.NewDecoder(br).Decode(&rules); err != nil {
 		return err
 	}
+
+	sort.Slice(rules.Entries, func(i, j int) bool {
+		ei, ej := rules.Entries[i], rules.Entries[j]
+		if ei.IncludeSubdomains != ej.IncludeSubdomains {
+			return ei.IncludeSubdomains
+		}
+
+		return ei.Name < ej.Name
+	})
+
+	names := make([]string, 0, len(rules.Entries))
+	nameIdxs := make([]uint32, 0, len(rules.Entries))
+	var namesIdx, includeSubdomainsEnd, maxDots int
+	for _, entry := range rules.Entries {
+		if entry.Mode != "force-https" {
+			continue
+		}
+
+		names = append(names, entry.Name)
+
+		packed := packNameIndexLen(namesIdx, len(entry.Name))
+		nameIdxs = append(nameIdxs, packed)
+		namesIdx += len(entry.Name)
+
+		if entry.IncludeSubdomains {
+			includeSubdomainsEnd += len(entry.Name)
+		}
+
+		dots := strings.Count(entry.Name, ".")
+		if dots > maxDots {
+			maxDots = dots
+		}
+	}
+
+	level0, level0Mask, level1, level1Mask := build(names)
 
 	f, err := os.Create("hsts_preload.go")
 	if err != nil {
@@ -87,27 +114,26 @@ func main1() error {
 	fmt.Fprintln(bw)
 	fmt.Fprintln(bw, "package hsts")
 	fmt.Fprintln(bw)
-	fmt.Fprintln(bw, "var preloadList = map[string]bool{")
-
-	var maxDots int
-	for _, entry := range rules.Entries {
-		if entry.Mode != "force-https" {
-			continue
+	fmt.Fprintf(bw, "const names = %q\n", strings.Join(names, ""))
+	fmt.Fprintln(bw)
+	fmt.Fprintf(bw, "const level0 = %q\n", level0)
+	fmt.Fprintln(bw)
+	fmt.Fprint(bw, "var level1 = []uint32{")
+	for i, n := range level1 {
+		if i > 0 {
+			fmt.Fprint(bw, ", ")
 		}
-
-		dots := strings.Count(entry.Name, ".")
-		if dots > maxDots {
-			maxDots = dots
-		}
-
-		fmt.Fprintf(bw, "\t%q: %t, // %s\n", entry.Name,
-			entry.IncludeSubdomains, entry.Policy)
+		fmt.Fprintf(bw, "%#x", nameIdxs[n])
 	}
-
 	fmt.Fprintln(bw, "}")
 	fmt.Fprintln(bw)
-	fmt.Fprintf(bw, "const maxDots = %d\n", maxDots)
+	fmt.Fprintf(bw, "const level0Mask = %#x\n", level0Mask)
 	fmt.Fprintln(bw)
+	fmt.Fprintf(bw, "const level1Mask = %#x\n", level1Mask)
+	fmt.Fprintln(bw)
+	fmt.Fprintf(bw, "const includeSubdomainsEnd = %d\n", includeSubdomainsEnd)
+	fmt.Fprintln(bw)
+	fmt.Fprintf(bw, "const maxDots = %d\n", maxDots)
 
 	if err := bw.Flush(); err != nil {
 		return err
@@ -118,4 +144,79 @@ func main1() error {
 	}
 
 	return f.Close()
+}
+
+func packNameIndexLen(idx, len int) uint32 {
+	if int(uint32(idx)&0x00ffffff) != idx {
+		panic("name index out of range")
+	}
+	if int(uint8(len)) != len {
+		panic("name len out of range")
+	}
+
+	return uint32(idx) | uint32(len)<<24
+}
+
+// build builds a table from keys using the "Hash, displace, and compress"
+// algorithm described in http://cmph.sourceforge.net/papers/esa09.pdf.
+func build(keys []string) (level0 []uint8, level0Mask int, level1 []uint32, level1Mask int) {
+	level0 = make([]uint8, nextPow2(len(keys)/4))
+	level0Mask = len(level0) - 1
+	level1 = make([]uint32, nextPow2(len(keys)))
+	level1Mask = len(level1) - 1
+	sparseBuckets := make([][]int, len(level0))
+	for i, s := range keys {
+		n := int(hsts.MurmurHash(0, s)) & level0Mask
+		sparseBuckets[n] = append(sparseBuckets[n], i)
+	}
+	type indexBucket struct {
+		n    int
+		vals []int
+	}
+	var buckets []indexBucket
+	for n, vals := range sparseBuckets {
+		if len(vals) > 0 {
+			buckets = append(buckets, indexBucket{n, vals})
+		}
+	}
+	sort.Slice(buckets, func(i, j int) bool {
+		return len(buckets[i].vals) > len(buckets[j].vals)
+	})
+
+	occ := make([]bool, len(level1))
+	var tmpOcc []int
+	for _, bucket := range buckets {
+		var seed uint32
+	trySeed:
+		tmpOcc = tmpOcc[:0]
+		for _, i := range bucket.vals {
+			n := int(hsts.MurmurHash(seed, keys[i])) & level1Mask
+			if occ[n] {
+				for _, n := range tmpOcc {
+					occ[n] = false
+				}
+				seed++
+				goto trySeed
+			}
+			occ[n] = true
+			tmpOcc = append(tmpOcc, n)
+			level1[n] = uint32(i)
+		}
+		if uint32(uint8(seed)) != seed {
+			panic("unable to find valid seed for table")
+		}
+		level0[bucket.n] = uint8(seed)
+	}
+
+	return level0, level0Mask, level1, level1Mask
+}
+
+func nextPow2(n int) int {
+	for i := 1; i > 0; i *= 2 {
+		if i >= n {
+			return i
+		}
+	}
+
+	panic("overflow")
 }

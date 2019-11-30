@@ -41,3 +41,8 @@ resp, err := client.Do(req)
 ## License
 
 [BSD 3-Clause License](LICENSE)
+
+The minimal perfect hashing code was taken from
+[cespare/mph](https://github.com/cespare/mph/tree/ecff71bf0208e9325253df11d1cd0e26c7a7a813)
+by [Caleb Spare](https://github.com/cespare) and is licensed under an
+[MIT License](https://github.com/cespare/mph/blob/ecff71bf0208e9325253df11d1cd0e26c7a7a813/LICENSE.txt).
