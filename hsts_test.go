@@ -22,6 +22,8 @@ func TestIsPreloaded(t *testing.T) {
 
 		"www.g.co",
 		"g.co",
+
+		"1.0.0.1",
 	} {
 		assert.True(t, IsPreloaded(host), host)
 	}
@@ -40,6 +42,8 @@ func TestIsPreloaded(t *testing.T) {
 		"net",
 
 		"test.g.co",
+
+		"www.1.0.0.1",
 	} {
 		assert.False(t, IsPreloaded(host), host)
 	}

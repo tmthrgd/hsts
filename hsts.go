@@ -2,7 +2,6 @@
 package hsts
 
 import (
-	"net"
 	"net/http"
 	"strings"
 
@@ -14,10 +13,6 @@ import (
 
 // IsPreloaded reports whether host appears in the HSTS preloaded list.
 func IsPreloaded(host string) bool {
-	if net.ParseIP(host) != nil {
-		return false
-	}
-
 	host = strings.TrimSuffix(host, ".")
 	host, _ = idna.ToASCII(host)
 
