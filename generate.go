@@ -190,6 +190,7 @@ func build(keys []string) (level0 []uint8, level1 []uint32) {
 			if occ[n] {
 				for _, n := range tmpOcc {
 					occ[n] = false
+					level1[n] = 0
 				}
 				seed++
 				goto trySeed
