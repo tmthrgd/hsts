@@ -99,7 +99,7 @@ func main1() error {
 		}
 	}
 
-	level0, level0Mask, level1, level1Mask := build(names)
+	level0, level1 := build(names)
 
 	f, err := os.Create("hsts_preload.go")
 	if err != nil {
@@ -126,10 +126,6 @@ func main1() error {
 		fmt.Fprintf(bw, "%#x", nameIdxs[n])
 	}
 	fmt.Fprintln(bw, "}")
-	fmt.Fprintln(bw)
-	fmt.Fprintf(bw, "const level0Mask = %#x\n", level0Mask)
-	fmt.Fprintln(bw)
-	fmt.Fprintf(bw, "const level1Mask = %#x\n", level1Mask)
 	fmt.Fprintln(bw)
 	fmt.Fprintf(bw, "const includeSubdomainsEnd = %d\n", includeSubdomainsEnd)
 	fmt.Fprintln(bw)
@@ -159,11 +155,11 @@ func packNameIndexLen(idx, len int) uint32 {
 
 // build builds a table from keys using the "Hash, displace, and compress"
 // algorithm described in http://cmph.sourceforge.net/papers/esa09.pdf.
-func build(keys []string) (level0 []uint8, level0Mask int, level1 []uint32, level1Mask int) {
+func build(keys []string) (level0 []uint8, level1 []uint32) {
 	level0 = make([]uint8, nextPow2(len(keys)/4))
-	level0Mask = len(level0) - 1
+	level0Mask := len(level0) - 1
 	level1 = make([]uint32, nextPow2(len(keys)))
-	level1Mask = len(level1) - 1
+	level1Mask := len(level1) - 1
 	sparseBuckets := make([][]int, len(level0))
 	for i, s := range keys {
 		n := int(hsts.MurmurHash(0, s)) & level0Mask
@@ -208,7 +204,7 @@ func build(keys []string) (level0 []uint8, level0Mask int, level1 []uint32, leve
 		level0[bucket.n] = uint8(seed)
 	}
 
-	return level0, level0Mask, level1, level1Mask
+	return level0, level1
 }
 
 func nextPow2(n int) int {
