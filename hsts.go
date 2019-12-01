@@ -62,10 +62,11 @@ func murmurHash(h uint32, s string) uint32 {
 // lookup searches for s and returns whether it includes subdomains and whether
 // it was found.
 func lookup(s string) (subdomains, ok bool) {
-	i0 := murmurHash(0, s) & level0Mask
-	seed := uint32(level0[i0])
-	i1 := murmurHash(seed, s) & level1Mask
-	n := level1[i1]
+	idx := murmurHash(0, s)
+	if seed := level0[idx&level0Mask]; seed > 0 {
+		idx = murmurHash(uint32(seed), s)
+	}
+	n := level1[idx&level1Mask]
 	len := n >> 24
 	n &= 0x00ffffff
 	return n < includeSubdomainsEnd, s == names[n:n+len]
