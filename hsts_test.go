@@ -10,9 +10,9 @@ import (
 
 func TestIsPreloaded(t *testing.T) {
 	for _, host := range []string{
-		"very.long.domain.name.tomthorogood.uk",
-		"www.tomthorogood.uk",
-		"tomthorogood.uk",
+		//"very.long.domain.name.tomthorogood.uk",
+		//"www.tomthorogood.uk",
+		//"tomthorogood.uk",
 
 		"tmthrgd.dev",
 		"dev",
@@ -100,9 +100,9 @@ func TestTransport(t *testing.T) {
 	for _, tc := range []struct {
 		url, expect string
 	}{
-		{"http://tomthorogood.uk", "https://tomthorogood.uk"},
-		{"http://www.tomthorogood.uk/path/to", "https://www.tomthorogood.uk/path/to"},
-		{"http://tomthorogood.uk:80/example?example", "https://tomthorogood.uk/example?example"},
+		//{"http://tomthorogood.uk", "https://tomthorogood.uk"},
+		//{"http://www.tomthorogood.uk/path/to", "https://www.tomthorogood.uk/path/to"},
+		//{"http://tomthorogood.uk:80/example?example", "https://tomthorogood.uk/example?example"},
 		{"http://user:pass@www.g.co/path/to?example", "https://user:pass@www.g.co/path/to?example"},
 		{"http://xn--7xa.google.com", "https://xn--7xa.google.com"}, // "φ.google.com"
 		{"http://%CF%86.google.com", "https://%CF%86.google.com"},   // "φ.google.com"
