@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -19,7 +20,7 @@ import (
 	"go.tmthrgd.dev/hsts"
 )
 
-const jsonURL = "https://cs.chromium.org/codesearch/f/chromium/src/net/http/transport_security_state_static.json"
+const jsonURL = "https://chromium.googlesource.com/chromium/src/net/+/master/http/transport_security_state_static.json?format=TEXT"
 
 func main() {
 	if err := main1(); err != nil {
@@ -46,7 +47,8 @@ func main1() error {
 		return fmt.Errorf("server returned unexpected %s status code", resp.Status)
 	}
 
-	br := filter.NewReader(resp.Body,
+	br := filter.NewReader(
+		base64.NewDecoder(base64.StdEncoding, resp.Body),
 		func(line []byte) bool {
 			line = bytes.TrimSpace(line)
 			return !(len(line) >= 2 && string(line[:2]) == "//")
