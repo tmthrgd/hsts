@@ -118,7 +118,7 @@ func main1() error {
 	fmt.Fprintln(bw)
 	fmt.Fprintf(bw, "const names = %q\n", strings.Join(names, ""))
 	fmt.Fprintln(bw)
-	fmt.Fprintf(bw, "const level0 = %q\n", level0)
+	fmt.Fprintf(bw, "var level0 = %#v\n", level0)
 	fmt.Fprintln(bw)
 	fmt.Fprint(bw, "var level1 = []uint32{")
 	for i, n := range level1 {
@@ -157,8 +157,8 @@ func packNameIndexLen(idx, len int) uint32 {
 
 // build builds a table from keys using the "Hash, displace, and compress"
 // algorithm described in http://cmph.sourceforge.net/papers/esa09.pdf.
-func build(keys []string) (level0 []uint8, level1 []uint32) {
-	level0 = make([]uint8, nextPow2(len(keys)/4))
+func build(keys []string) (level0 []uint16, level1 []uint32) {
+	level0 = make([]uint16, nextPow2(len(keys)/4))
 	level0Mask := len(level0) - 1
 	level1 = make([]uint32, nextPow2(len(keys)))
 	level1Mask := len(level1) - 1
@@ -201,10 +201,10 @@ func build(keys []string) (level0 []uint8, level1 []uint32) {
 			tmpOcc = append(tmpOcc, n)
 			level1[n] = uint32(i)
 		}
-		if uint32(uint8(seed)) != seed {
-			panic("unable to find valid seed for table")
+		if uint32(uint16(seed)) != seed {
+			panic(fmt.Sprintf("unable to find valid seed for table (found seed %d)", seed))
 		}
-		level0[bucket.n] = uint8(seed)
+		level0[bucket.n] = uint16(seed)
 	}
 
 	return level0, level1
