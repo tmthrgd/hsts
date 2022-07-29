@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 package main
@@ -20,7 +21,7 @@ import (
 	"go.tmthrgd.dev/hsts"
 )
 
-const jsonURL = "https://chromium.googlesource.com/chromium/src/net/+/master/http/transport_security_state_static.json?format=TEXT"
+const jsonURL = "https://chromium.googlesource.com/chromium/src/net/+/main/http/transport_security_state_static.json?format=TEXT"
 
 func main() {
 	if err := main1(); err != nil {
