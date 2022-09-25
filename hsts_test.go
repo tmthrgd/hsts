@@ -10,9 +10,9 @@ import (
 
 func TestIsPreloaded(t *testing.T) {
 	for _, host := range []string{
-		//"very.long.domain.name.tomthorogood.uk",
-		//"www.tomthorogood.uk",
-		//"tomthorogood.uk",
+		"very.long.domain.name.tomthorogood.net",
+		"www.tomthorogood.net",
+		"tomthorogood.net",
 
 		"tmthrgd.dev",
 		"dev",
@@ -55,9 +55,9 @@ func TestIsPreloaded(t *testing.T) {
 func TestIsPreloadedAllocs(t *testing.T) {
 	allocs := testing.AllocsPerRun(10, func() {
 		for _, host := range []string{
-			"very.long.domain.name.tomthorogood.uk",
-			"www.tomthorogood.uk",
-			"tomthorogood.uk",
+			"very.long.domain.name.tomthorogood.net",
+			"www.tomthorogood.net",
+			"tomthorogood.net",
 
 			"tmthrgd.dev",
 			"dev",
@@ -100,32 +100,32 @@ func TestTransport(t *testing.T) {
 	for _, tc := range []struct {
 		url, expect string
 	}{
-		//{"http://tomthorogood.uk", "https://tomthorogood.uk"},
-		//{"http://www.tomthorogood.uk/path/to", "https://www.tomthorogood.uk/path/to"},
-		//{"http://tomthorogood.uk:80/example?example", "https://tomthorogood.uk/example?example"},
+		{"http://tomthorogood.net", "https://tomthorogood.net"},
+		{"http://www.tomthorogood.net/path/to", "https://www.tomthorogood.net/path/to"},
+		{"http://tomthorogood.net:80/example?example", "https://tomthorogood.net/example?example"},
 		{"http://user:pass@www.g.co/path/to?example", "https://user:pass@www.g.co/path/to?example"},
 		{"http://xn--7xa.google.com", "https://xn--7xa.google.com"}, // "φ.google.com"
 		{"http://%CF%86.google.com", "https://%CF%86.google.com"},   // "φ.google.com"
 
-		{"https://tomthorogood.uk", "https://tomthorogood.uk"},
-		{"https://www.tomthorogood.uk/path/to", "https://www.tomthorogood.uk/path/to"},
-		{"https://tomthorogood.uk:443/example?example", "https://tomthorogood.uk:443/example?example"},
-		{"https://tomthorogood.uk:8443/example?example", "https://tomthorogood.uk:8443/example?example"},
+		{"https://tomthorogood.net", "https://tomthorogood.net"},
+		{"https://www.tomthorogood.net/path/to", "https://www.tomthorogood.net/path/to"},
+		{"https://tomthorogood.net:443/example?example", "https://tomthorogood.net:443/example?example"},
+		{"https://tomthorogood.net:8443/example?example", "https://tomthorogood.net:8443/example?example"},
 		{"https://user:pass@www.g.co/path/to?example", "https://user:pass@www.g.co/path/to?example"},
 		{"https://xn--7xa.google.com", "https://xn--7xa.google.com"}, // "φ.google.com"
 		{"https://%CF%86.google.com", "https://%CF%86.google.com"},   // "φ.google.com"
 
-		{"http://tomthorogood.uk:8080", "http://tomthorogood.uk:8080"},
+		{"http://tomthorogood.net:8080", "http://tomthorogood.net:8080"},
 		{"http://example.com", "http://example.com"},
 		{"http://test.g.co", "http://test.g.co"},
 		{"http://test.g.co:80", "http://test.g.co:80"},
 		{"http://user:pass@test.g.co:8080/path/to?example", "http://user:pass@test.g.co:8080/path/to?example"},
 
-		{"ftp://tomthorogood.uk", "ftp://tomthorogood.uk"},
+		{"ftp://tomthorogood.net", "ftp://tomthorogood.net"},
 
 		{"file:///etc/hosts", "file:///etc/hosts"},
 		{"file://host/etc/hosts", "file://host/etc/hosts"},
-		{"file://tomthorogood.uk/etc/hosts", "file://tomthorogood.uk/etc/hosts"},
+		{"file://tomthorogood.net/etc/hosts", "file://tomthorogood.net/etc/hosts"},
 	} {
 		req, err := http.NewRequest(http.MethodGet, tc.url, nil)
 		require.NoError(t, err)
