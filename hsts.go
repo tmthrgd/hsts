@@ -121,11 +121,13 @@ func (rt *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.URL.Scheme == "http" &&
 		(port == "" || port == "80") &&
 		IsPreloaded(hostname) {
-		// WithContext currently copies the http.Request URL field and
-		// is more lightweight than Clone. See golang.org/issue/23544.
-		req = req.WithContext(req.Context())
-		req.URL.Scheme = "https"
-		req.URL.Host = hostname // Remove port from URL.
+		// Copy the request and it's URL before modifying.
+		r := *req
+		u := *r.URL
+		u.Scheme = "https"
+		u.Host = hostname // Remove port from URL.
+		r.URL = &u
+		req = &r
 	}
 
 	base := http.DefaultTransport
